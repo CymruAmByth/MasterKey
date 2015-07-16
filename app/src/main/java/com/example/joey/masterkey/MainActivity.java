@@ -5,12 +5,13 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.os.AsyncTask;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 
 import com.google.android.gms.auth.GoogleAuthException;
@@ -25,7 +26,7 @@ import com.google.android.gms.plus.Plus;
 import java.io.IOException;
 
 
-public class MainActivity extends Activity implements
+public class MainActivity extends AppCompatActivity implements
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         View.OnClickListener
@@ -33,9 +34,8 @@ public class MainActivity extends Activity implements
     private static final int RC_SIGN_IN = 0;
     private GoogleApiClient mGoogleApiClient;
     private boolean mIsResolving = false;
-    private boolean mShouldResolve = false;
+    private boolean mShouldResolve = true;
     private TextView mStatusTextView;
-    private static final String SERVER_CLIENT_ID = "635248478115-khks0610shmbkpk8qh4btdgeos4c2n3e.apps.googleusercontent.com";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,7 +49,6 @@ public class MainActivity extends Activity implements
                 .addScope(new Scope(Scopes.PROFILE))
                 .build();
 
-        findViewById(R.id.sign_in_button).setOnClickListener(this);
         mStatusTextView = (TextView) findViewById(R.id.status);
     }
 
@@ -67,12 +66,23 @@ public class MainActivity extends Activity implements
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
+        switch (id) {
+            case R.id.action_login:
+                switchPersonClicked();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
         }
+    }
 
-        return super.onOptionsItemSelected(item);
+    private void switchPersonClicked() {
+        if(mGoogleApiClient.isConnected()){
+            Plus.AccountApi.clearDefaultAccount(mGoogleApiClient);
+            mGoogleApiClient.disconnect();
+        }
+        mShouldResolve = true;
+        mGoogleApiClient.connect();
+        mStatusTextView.setText(R.string.signing_in);
     }
 
     @Override
@@ -89,22 +99,16 @@ public class MainActivity extends Activity implements
 
     @Override
     public void onClick(View v) {
-        if(v.getId() == R.id.sign_in_button){
-            onSignInClicked();
+        switch (v.getId()){
         }
-    }
-
-    private void onSignInClicked() {
-        mShouldResolve = true;
-        mGoogleApiClient.connect();
-        mStatusTextView.setText(R.string.signing_in);
     }
 
     @Override
     public void onConnected(Bundle bundle) {
         Log.d("MrKey", "Connected");
+        mStatusTextView.setText(getResources().getString(R.string.signedIn)+ " " + Plus.AccountApi.getAccountName(mGoogleApiClient));
         mShouldResolve = false;
-        GetIdTokenTask tokenTask = new GetIdTokenTask();
+        GetIdTokenTask tokenTask = new GetIdTokenTask(mGoogleApiClient, getApplicationContext());
         tokenTask.execute();
     }
 
@@ -145,33 +149,7 @@ public class MainActivity extends Activity implements
             }
         } else {
             Log.d("MrKey", "SIGNED OUT");
-        }
-    }
-
-    private class GetIdTokenTask extends AsyncTask<Void, Void, String>{
-
-        @Override
-        protected String doInBackground(Void... params) {
-            String accountName = Plus.AccountApi.getAccountName(mGoogleApiClient);
-            Account account = new Account(accountName, GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE);
-            String scopes = "audience:server:client_id:" + SERVER_CLIENT_ID;
-            try{
-                return GoogleAuthUtil.getToken(getApplicationContext(), account.name, scopes);
-            } catch (UserRecoverableAuthException e) {
-                Log.d("MrKey", "Error retrieving token: ", e);
-                return null;
-            } catch (GoogleAuthException e) {
-                Log.d("MrKey", "Error retrieving token: ", e);
-                return null;
-            } catch (IOException e) {
-                Log.d("MrKey", "Error retrieving token: ", e);
-                return null;
-            }
-        }
-
-        @Override
-        protected void onPostExecute(String s) {
-            Log.d("MrKey", "ID token:" + s);
+            mStatusTextView.setText("Not signed in");
         }
     }
 }
