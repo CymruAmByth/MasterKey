@@ -14,6 +14,7 @@ import com.google.android.gms.plus.Plus;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Scanner;
 
@@ -38,14 +39,9 @@ public class GetIdTokenTask extends AsyncTask<Void, Void, String> {
         String scopes = "audience:server:client_id:" + SERVER_CLIENT_ID;
         try{
             String token = GoogleAuthUtil.getToken(mContext, account.name, scopes);
-            Socket s = new Socket("10.56.62.181", 8887);
-            Scanner scan = new Scanner(s.getInputStream());
-            PrintWriter writer = new PrintWriter(s.getOutputStream(), true);
-            writer.println(token);
-            if(scan.hasNextLine()){
-                return scan.nextLine();
-            }
-            return null;
+            Log.d("MrKey", "Connection made!");
+            Message m = new Message(Message.Type.CONN, token, "nA");
+            return serverDao.sendMessage(m);
         } catch (UserRecoverableAuthException e) {
             Log.d("MrKey", "Auth Error retrieving token: ", e);
             return null;
